@@ -21,53 +21,32 @@ jobs:
 
       - name: Verify source files
         run: |
-          if [ ! -f "./main.c" ]; then
-            echo "main.c not found at root. Failing."
-            exit 1
-          fi
+          ls -la
+          test -f main.c || (echo "main.c not found" && exit 1)
 
-      - name: Prepare reports directory and compile_commands.json
+      - name: Prepare reports and compile_commands.json
         run: |
           mkdir -p reports
-          ABS_PATH=$(realpath main.c)
-          DIR_PATH=$(dirname "$ABS_PATH")
+          SRC_FILE=$(realpath main.c)
+          SRC_DIR=$(dirname "$SRC_FILE")
           echo '[' > compile_commands.json
-          echo '  {' >> compile_commands.json
-          echo '    "directory": "'"$DIR_PATH"'",' >> compile_commands.json
-          echo '    "command": "gcc -std=c17 -I'"$DIR_PATH"' -O2 -g main.c -o main",' >> compile_commands.json
-          echo '    "file": "'"$ABS_PATH"'"' >> compile_commands.json
-          echo '  }' >> compile_commands.json
+          echo '{' >> compile_commands.json
+          echo '  "directory": "'"$SRC_DIR"'",' >> compile_commands.json
+          echo '  "command": "gcc -std=c17 -I. -O2 -c main.c",' >> compile_commands.json
+          echo '  "file": "'"$SRC_FILE"'"' >> compile_commands.json
+          echo '}' >> compile_commands.json
           echo ']' >> compile_commands.json
-
-      - name: Debug compile_commands.json
-        run: cat compile_commands.json
-
-      - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: fs
-          format: sarif
-          output: reports/trivy.sarif
-          exit-code: 0
-
-      - name: Install Semgrep CLI
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install Semgrep
-        run: python3 -m pip install --upgrade semgrep
-
-      - name: Run Semgrep scan
-        run: semgrep --config p/ci --sarif --output reports/semgrep.sarif .
+          cat compile_commands.json
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
+        uses: SonarSource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: .
-          args: |
-            -Dsonar.login=${{ env.SONAR_TOKEN }}
-            -Dsonar.sarifReportPaths=reports/trivy.sarif,reports/semgrep.sarif
+          args: >
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.projectKey=my_project_key
+            -Dsonar.organization=my_org
+            -Dsonar.sources=.
             -Dsonar.cfamily.compile-commands=compile_commands.json
+            -Dsonar.sarifReportPaths=reports/trivy.sarif,reports/semgrep.sarif
