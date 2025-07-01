@@ -22,9 +22,16 @@ jobs:
       - name: Prepare reports directory and compile_commands.json
         run: |
           mkdir -p reports
-          echo '[' > compile_commands.json
-          echo '  { "directory": "'"${PWD}"'", "command": "gcc -std=c17 -I. -O2 -g main.c -o main", "file": "main.c" }' >> compile_commands.json
-          echo ']' >> compile_commands.json
+          cat <<EOF > compile_commands.json
+          [
+            {
+              "directory": "/github/workspace",
+              "command": "gcc -std=c17 -I/github/workspace -O2 -g /github/workspace/main.c -o main",
+              "file": "/github/workspace/main.c"
+            }
+          ]
+          EOF
+
 
       - name: Run Trivy scan
         uses: aquasecurity/trivy-action@master
